@@ -231,6 +231,28 @@ class TradingAgentsGraph:
         ) as f:
             json.dump(self.log_states_dict, f, indent=4)
 
+    def propagate_stream(self, company_name, trade_date):
+        """Stream the trading agents graph for real-time UI updates.
+
+        Yields:
+            chunk: A streaming chunk from langgraph with messages and state updates.
+        At the end, logs the final state similarly to propagate().
+        """
+        self.ticker = company_name
+
+        init_agent_state = self.propagator.create_initial_state(company_name, trade_date)
+        args = self.propagator.get_graph_args()
+
+        last_chunk = None
+        for chunk in self.graph.stream(init_agent_state, **args):
+            last_chunk = chunk
+            yield chunk
+
+        if last_chunk is not None:
+            final_state = last_chunk
+            self.curr_state = final_state
+            self._log_state(trade_date, final_state)
+
     def reflect_and_remember(self, returns_losses):
         """Reflect on decisions and update memory based on returns."""
         self.reflector.reflect_bull_researcher(

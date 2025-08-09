@@ -568,11 +568,21 @@ def get_stockstats_indicator(
     curr_date = curr_date.strftime("%Y-%m-%d")
 
     try:
+        # Use appropriate data directory based on online/offline mode
+        if online:
+            # For online mode, use the working data cache directory
+            from .config import get_config
+            config = get_config()
+            data_dir = config["data_cache_dir"]
+        else:
+            # For offline mode, use the configured data directory
+            data_dir = os.path.join(DATA_DIR, "market_data", "price_data")
+            
         indicator_value = StockstatsUtils.get_stock_stats(
             symbol,
             indicator,
             curr_date,
-            os.path.join(DATA_DIR, "market_data", "price_data"),
+            data_dir,
             online=online,
         )
     except Exception as e:

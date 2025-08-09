@@ -24,3 +24,5 @@ rich
 questionary
 langchain_anthropic
 langchain-google-genai
+streamlit>=1.28.0
+python-dotenv

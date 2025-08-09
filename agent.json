@@ -1,0 +1,117 @@
+{
+  "name": "TradingAgents",
+  "icon": "📈",
+  "emoji": "📈",
+  "version": "1.0.0",
+  "description": "A sophisticated multi-agent LLM financial trading framework that uses collaborative AI agents to make informed trading decisions through structured analysis and debate.",
+  "long_description": "TradingAgents is a production-ready, research-backed multi-agent system for financial trading analysis. It employs three specialized agent teams - Analysts, Researchers (bullish/bearish), and Risk Management - that collaborate through structured debates to generate comprehensive trading decisions. The framework supports multiple LLM providers (OpenAI, Google Gemini), includes real-time financial data integration, and features memory-based learning from past decisions. Published in academic research (arXiv:2412.20138), it represents a cutting-edge approach to AI-driven financial analysis.",
+  "category": "Finance & Trading",
+  "subcategory": "Trading Analysis",
+  "agentType": "Multi-Agent System",
+  "agentScale": "Multi-Agent",
+  "tags": [
+    "trading",
+    "finance",
+    "multi-agent",
+    "llm",
+    "analysis",
+    "research",
+    "risk-management",
+    "debate",
+    "openai",
+    "gemini",
+    "financial-data"
+  ],
+  "author": "Tauric Research",
+  "license": "MIT",
+  "homepage": "https://github.com/TauricResearch/TradingAgents",
+  "repository": "https://github.com/TauricResearch/TradingAgents",
+  "documentation": "https://arxiv.org/abs/2412.20138",
+  "entry_point": "app/trading_agents_ui.py",
+  "use_cases": [
+    "Automated stock analysis with multi-perspective evaluation",
+    "Risk-balanced trading decision making through agent debates",
+    "Comprehensive fundamental and technical analysis",
+    "Portfolio management with AI-driven insights",
+    "Trading strategy research and backtesting",
+    "Financial market sentiment analysis",
+    "Investment research with collaborative AI agents"
+  ],
+  "privacy_considerations": "TradingAgents operates with user-controlled API keys for LLM providers and financial data sources. All analysis and decision-making occurs locally within the user's environment. The system does not store or transmit trading decisions or financial data beyond the user's specified configuration. Users maintain full control over their API credentials and can use local LLM deployments for enhanced privacy. Financial data is accessed through standard APIs (yfinance, etc.) with user-provided credentials.",
+  "features": [
+    "Multi-agent collaborative trading analysis",
+    "Structured debate system between bullish/bearish researchers",
+    "Support for multiple LLM providers (OpenAI, Google Gemini)",
+    "Real-time financial data integration",
+    "Configurable debate rounds and analysis depth",
+    "Memory-based learning from trading outcomes",
+    "Risk management evaluation framework",
+    "CLI and programmatic interfaces",
+    "Comprehensive logging and debugging",
+    "Academic research validation",
+    "Flexible configuration system"
+  ],
+  "requirements": [
+    "Python 3.8+",
+    "LLM API access (OpenAI, Google, etc.)",
+    "Financial data API access (optional for enhanced features)",
+    "Internet connection for real-time data"
+  ],
+  "installation_instructions": "1. Install dependencies: pip install -r requirements.txt\n2. Configure API keys in environment variables or config\n3. Run: python main.py",
+  "docker_instructions": "docker run -d --name trading-agents -e OPENAI_API_KEY=your_key -e GOOGLE_API_KEY=your_key -p 8501:8501 agentopia/trading-agents:latest",
+  "environment_variables": [
+    {
+      "name": "OPENAI_API_KEY",
+      "description": "OpenAI API key for GPT models",
+      "required": false
+    },
+    {
+      "name": "GOOGLE_API_KEY",
+      "description": "Google API key for Gemini models",
+      "required": false
+    },
+    {
+      "name": "TRADINGAGENTS_RESULTS_DIR",
+      "description": "Directory for storing analysis results",
+      "required": false,
+      "default": "./results"
+    }
+  ],
+  "ports": [
+    {
+      "port": 8501,
+      "description": "Streamlit web interface port"
+    }
+  ],
+  "volumes": [
+    {
+      "host_path": "./results",
+      "container_path": "/app/results",
+      "description": "Trading analysis results and logs"
+    }
+  ],
+  "deployment_status": "Production",
+  "maturity_level": "Stable",
+  "last_updated": "2025-01-06",
+  "roadmap": {
+    "current_phase": "Phase 1: Production Ready - Multi-Agent Trading Framework",
+    "completed_milestones": [
+      "✅ Multi-agent architecture with specialized teams",
+      "✅ Structured debate system for balanced analysis",
+      "✅ Multiple LLM provider support",
+      "✅ Real-time financial data integration",
+      "✅ Memory-based learning system",
+      "✅ Academic research validation (arXiv publication)",
+      "✅ CLI and programmatic interfaces",
+      "✅ Comprehensive configuration system"
+    ],
+    "upcoming_milestones": [
+      "🔄 Streamlit web interface for user-friendly interaction",
+      "🔄 Enhanced portfolio management features",
+      "🔄 Advanced backtesting capabilities",
+      "🔄 Integration with more financial data providers",
+      "🔄 Real-time trading execution (with user approval)",
+      "🔄 Advanced risk management algorithms"
+    ]
+  }
+}

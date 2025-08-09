@@ -36,7 +36,24 @@ class StockstatsUtils:
                         f"{symbol}-YFin-data-2015-01-01-2025-03-25.csv",
                     )
                 )
-                df = wrap(data)
+                
+                # Filter data to only include columns that stockstats expects
+                # stockstats expects: Date, Open, High, Low, Close, Volume
+                required_columns = ['Date', 'Open', 'High', 'Low', 'Close', 'Volume']
+                
+                # Ensure we have all required columns
+                available_columns = [col for col in required_columns if col in data.columns]
+                if len(available_columns) < 5:  # At minimum need Date, Open, High, Low, Close
+                    raise Exception(f"Missing required columns. Available: {list(data.columns)}")
+                
+                # Create clean dataframe with only required columns
+                clean_data = data[available_columns].copy()
+                
+                # Handle missing Volume column (some data sources don't provide it)
+                if 'Volume' not in clean_data.columns:
+                    clean_data['Volume'] = 0  # Set default volume if missing
+                
+                df = wrap(clean_data)
             except FileNotFoundError:
                 raise Exception("Stockstats fail: Yahoo Finance data not fetched yet!")
         else:
@@ -73,7 +90,23 @@ class StockstatsUtils:
                 data = data.reset_index()
                 data.to_csv(data_file, index=False)
 
-            df = wrap(data)
+            # Filter data to only include columns that stockstats expects
+            # stockstats expects: Date, Open, High, Low, Close, Volume
+            required_columns = ['Date', 'Open', 'High', 'Low', 'Close', 'Volume']
+            
+            # Ensure we have all required columns
+            available_columns = [col for col in required_columns if col in data.columns]
+            if len(available_columns) < 5:  # At minimum need Date, Open, High, Low, Close
+                raise Exception(f"Missing required columns. Available: {list(data.columns)}")
+            
+            # Create clean dataframe with only required columns
+            clean_data = data[available_columns].copy()
+            
+            # Handle missing Volume column (some data sources don't provide it)
+            if 'Volume' not in clean_data.columns:
+                clean_data['Volume'] = 0  # Set default volume if missing
+            
+            df = wrap(clean_data)
             df["Date"] = df["Date"].dt.strftime("%Y-%m-%d")
             curr_date = curr_date.strftime("%Y-%m-%d")
 
