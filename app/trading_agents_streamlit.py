@@ -54,12 +54,28 @@ st.markdown("""
 <style>
     .main-header {
         text-align: center;
-        padding: 2rem 0;
+        padding: 0.75rem 1rem;
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         color: white;
-        border-radius: 15px;
-        margin-bottom: 2rem;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        border-radius: 8px;
+        margin-bottom: 1rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    .main-header h1 {
+        margin: 0;
+        font-size: 1.5rem;
+        line-height: 1.2;
+    }
+    .main-header h3 {
+        margin: 0.25rem 0 0 0;
+        font-size: 1rem;
+        font-weight: 400;
+        opacity: 0.9;
+    }
+    .main-header p {
+        margin: 0.25rem 0 0 0;
+        font-size: 0.85rem;
+        opacity: 0.8;
     }
     .agent-status-card {
         background: #f8f9fa;
@@ -131,6 +147,56 @@ st.markdown("""
         border-radius: 10px;
         padding: 1rem;
         margin: 1rem 0;
+    }
+    /* Remove column padding and gaps to align main content with header */
+    .stColumn:first-child {
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+    }
+    .stColumn:first-child > div {
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+    }
+    /* Eliminate gap between columns */
+    .stColumn {
+        gap: 0 !important;
+    }
+    /* Force main content column to take maximum available width */
+    .stColumn:first-child {
+        flex: 1 !important;
+        max-width: calc(100% - 250px) !important;
+    }
+    /* Fix agent status column width */
+    .stColumn:last-child {
+        flex: 0 0 250px !important;
+        min-width: 250px !important;
+        max-width: 250px !important;
+    }
+    
+    /* Full width container for perfect alignment */
+    .full-width-container {
+        margin-left: calc(-1 * var(--padding-left, 1rem)) !important;
+        margin-right: calc(-1 * var(--padding-right, 1rem)) !important;
+        padding-left: var(--padding-left, 1rem) !important;
+        padding-right: var(--padding-right, 1rem) !important;
+        width: calc(100% + 2 * var(--padding-left, 1rem)) !important;
+    }
+    
+    /* Override Streamlit's main container padding */
+    .main .block-container {
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+        max-width: none !important;
+    }
+    
+    /* Ensure columns start at true left edge */
+    .stColumn:first-child {
+        margin-left: 0 !important;
+        padding-left: 0 !important;
     }
     
     /* Animated agent cards */
@@ -237,6 +303,48 @@ st.markdown("""
         margin: 1rem 0;
         box-shadow: 0 8px 25px rgba(0,0,0,0.15);
     }
+    
+    /* Fixed-height streaming messages container */
+    .streaming-container {
+        height: 400px;
+        overflow-y: auto;
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        padding: 1rem;
+        background: #f8f9fa;
+        margin: 1rem 0;
+        box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);
+    }
+    
+    .streaming-container::-webkit-scrollbar {
+        width: 8px;
+    }
+    
+    .streaming-container::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 4px;
+    }
+    
+    .streaming-container::-webkit-scrollbar-thumb {
+        background: #c1c1c1;
+        border-radius: 4px;
+    }
+    
+    .streaming-container::-webkit-scrollbar-thumb:hover {
+        background: #a8a8a8;
+    }
+    
+    .streaming-message {
+        margin: 0.5rem 0;
+        padding: 0.75rem;
+        background: white;
+        border-radius: 6px;
+        border-left: 3px solid #007bff;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        font-family: 'Courier New', monospace;
+        font-size: 0.9rem;
+        line-height: 1.4;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -254,7 +362,7 @@ if "agent_status" not in st.session_state:
 if 'progress_messages' not in st.session_state:
     st.session_state.progress_messages = deque(maxlen=50)
 
-# Header
+# Compact Header
 st.markdown("""
 <div class="main-header">
     <h1>📈 TradingAgents</h1>
@@ -371,75 +479,6 @@ with st.sidebar:
 
     st.divider()
 
-    # Trading Parameters
-    st.subheader("📊 Analysis Parameters")
-    
-    # Stock Symbol Selection
-    stock_symbol = st.text_input(
-        "Stock Symbol",
-        value="NVDA",
-        help="Enter the stock ticker symbol (e.g., AAPL, GOOGL, TSLA, SPY)"
-    ).upper()
-    
-    # Date Selection
-    max_date = date.today() - timedelta(days=1)  # Yesterday as max date
-    min_date = date.today() - timedelta(days=365)  # One year ago as min date
-    
-    analysis_date = st.date_input(
-        "Analysis Date",
-        value=max_date,
-        min_value=min_date,
-        max_value=max_date,
-        help="Select the date for analysis (market data required)"
-    )
-    
-    st.divider()
-    
-    # Analysis Depth
-    st.subheader("🔍 Analysis Depth")
-
-    depth_choice = st.radio(
-        "Research Depth",
-        options=["Beginner", "Standard", "Deep", "Custom"],
-        index=1,
-        help="Use presets or choose Custom to set rounds manually"
-    )
-
-    preset_rounds = {"Beginner": (1, 1), "Standard": (2, 2), "Deep": (3, 3)}
-    preset_debate, preset_risk = preset_rounds.get(depth_choice, (2, 1))
-
-    max_debate_rounds = st.slider(
-        "Debate Rounds",
-        min_value=1,
-        max_value=5,
-        value=preset_debate,
-        disabled=(depth_choice != "Custom"),
-        help="Number of debate rounds between bull/bear researchers"
-    )
-
-    max_risk_rounds = st.slider(
-        "Risk Discussion Rounds",
-        min_value=1,
-        max_value=3,
-        value=preset_risk,
-        disabled=(depth_choice != "Custom"),
-        help="Number of risk management discussion rounds"
-    )
-    
-    online_tools = st.checkbox(
-        "Enable Online Tools",
-        value=True,
-        help="Allow agents to access real-time financial data and news"
-    )
-    
-    debug_mode = st.checkbox(
-        "Debug Mode",
-        value=False,
-        help="Show detailed agent communications and tool calls"
-    )
-
-    st.divider()
-
     # Analyst selection (optional)
     st.subheader("🧩 Analyst Selection")
     analyst_labels = {
@@ -458,27 +497,159 @@ with st.sidebar:
     )
     # Map back to ids
     selected_analysts = [k for k, v in analyst_labels.items() if v in selected_labels]
+    
+    # About TradingAgents section - moved from main content for cleaner layout
+    with st.expander("ℹ️ About TradingAgents", expanded=False):
+        st.markdown("""
+        **TradingAgents** is a sophisticated multi-agent framework that uses AI collaboration to make informed trading decisions.
+        
+        **🎯 Key Features:**
+        - 🤝 Multi-agent collaboration
+        - 🎯 Structured debate system
+        - 📈 Real-time financial data
+        - 🧠 Memory-based learning
+        - 🔒 Privacy-focused design
+        
+        **📚 Research:** Published in arXiv:2412.20138
+        """)
+        
+        st.markdown("""
+        **🔗 Links:**
+        - [GitHub Repository](https://github.com/TauricResearch/TradingAgents)
+        - [Research Paper](https://arxiv.org/abs/2412.20138)
+        - [Discord Community](https://discord.com/invite/hk9PGKShPK)
+        """)
+        
+        st.markdown("""
+        <div style="text-align: center; color: #666; padding: 1rem 0;">
+            <p><strong>TradingAgents - Multi-Agent LLM Financial Trading Framework</strong></p>
+            <p>Developed by <a href="https://tauric.ai/" target="_blank">Tauric Research</a> | Enhanced UI by <a href="https://agentopia.github.io/" target="_blank">Agentopia</a></p>
+            <p><em>⚠️ This framework is designed for research purposes. Trading performance may vary. Not intended as financial advice.</em></p>
+        </div>
+        """, unsafe_allow_html=True)
 
-# Main content area - Optimized single column layout
-st.header("🎯 Trading Analysis Dashboard")
+# Main layout with aligned section titles
+# Create a container that extends to full width
+st.markdown('<div class="full-width-container">', unsafe_allow_html=True)
 
-# Analysis Controls with compact layout
-col_start, col_stop, col_status = st.columns([1, 1, 2])
+# Create aligned section headers
+title_col1, title_col2 = st.columns([8, 2], gap="small")
+with title_col1:
+    st.header("🎯 Trading Analysis Dashboard")
+with title_col2:
+    st.header("🤖 Agent Status")
 
-with col_start:
+# Create main 2-column layout: Main content and Agent Status sidebar
+main_content_col, agent_status_col = st.columns([8, 2], gap="small")
+
+with main_content_col:
+    # Analysis Parameters - moved from sidebar for better UX workflow
+    # Always define parameters (needed for analysis execution)
+    
+    # Initialize default values
+    stock_symbol = "NVDA"
+    max_date = date.today() - timedelta(days=1)
+    min_date = date.today() - timedelta(days=365)
+    analysis_date = max_date
+    depth_choice = "Standard"
+    preset_rounds = {"Beginner": (1, 1), "Standard": (2, 2), "Deep": (3, 3)}
+    preset_debate, preset_risk = preset_rounds.get(depth_choice, (2, 1))
+    max_debate_rounds = preset_debate
+    max_risk_rounds = preset_risk
+    online_tools = True
+    debug_mode = False
+    
     if not st.session_state.analysis_running:
-        if st.button("🚀 Start Analysis", type="primary", use_container_width=True):
+        st.subheader("📈 Analysis Parameters")
+        
+        # Create a more compact layout using columns for parameters
+        param_col1, param_col2 = st.columns([1, 1])
+        
+        with param_col1:
+            # Stock Symbol Selection
+            stock_symbol = st.text_input(
+                "Stock Symbol",
+                value="NVDA",
+                help="Enter the stock ticker symbol (e.g., AAPL, GOOGL, TSLA, SPY)"
+            ).upper()
+            
+            # Date Selection
+            analysis_date = st.date_input(
+                "Analysis Date",
+                value=max_date,
+                min_value=min_date,
+                max_value=max_date,
+                help="Select the date for analysis (market data required)"
+            )
+            
+            # Analysis Depth
+            depth_choice = st.radio(
+                "Research Depth",
+                options=["Beginner", "Standard", "Deep", "Custom"],
+                index=1,
+                help="Use presets or choose Custom to set rounds manually"
+            )
+        
+        with param_col2:
+            # Debate and Risk Rounds
+            preset_debate, preset_risk = preset_rounds.get(depth_choice, (2, 1))
+
+            max_debate_rounds = st.slider(
+                "Debate Rounds",
+                min_value=1,
+                max_value=5,
+                value=preset_debate,
+                disabled=(depth_choice != "Custom"),
+                help="Number of debate rounds between bull/bear researchers"
+            )
+
+            max_risk_rounds = st.slider(
+                "Risk Discussion Rounds",
+                min_value=1,
+                max_value=3,
+                value=preset_risk,
+                disabled=(depth_choice != "Custom"),
+                help="Number of risk management discussion rounds"
+            )
+            
+            # Options
+            online_tools = st.checkbox(
+                "Enable Online Tools",
+                value=True,
+                help="Allow agents to access real-time financial data and news"
+            )
+            
+            debug_mode = st.checkbox(
+                "Debug Mode",
+                value=False,
+                help="Show detailed agent communications and tool calls"
+            )
+        
+        
+        # Analysis Controls - Start button in full width for proper alignment
+        if st.button("🚀 Start Analysis", type="primary", key="start_analysis_main"):
             # Validate inputs
             if not stock_symbol:
                 st.error("Please enter a stock symbol")
                 st.stop()
             
-            # Set Market Analyst to running BEFORE starting analysis to show animation
-            st.session_state.agent_status["Market Analyst"] = "running"
-            st.session_state.analysis_running = True
+            # Store parameters in session state for use during analysis
+            st.session_state.current_stock_symbol = stock_symbol
+            st.session_state.current_analysis_date = analysis_date
+            st.session_state.current_max_debate_rounds = max_debate_rounds
+            st.session_state.current_max_risk_rounds = max_risk_rounds
+            st.session_state.current_online_tools = online_tools
+            st.session_state.current_debug_mode = debug_mode
+            st.session_state.current_selected_analysts = selected_analysts
             
-            # Trigger rerun to show animation BEFORE analysis starts
-            st.rerun()
+            # Initialize all agent statuses to pending for selected analysts
+            all_agents = [
+                "Market Analyst", "Social Analyst", "News Analyst", "Fundamentals Analyst",
+                "Bull Researcher", "Bear Researcher", "Research Manager",
+                "Trader", "Risky Analyst", "Neutral Analyst", "Safe Analyst", "Portfolio Manager"
+            ]
+            for agent in all_agents:
+                st.session_state.agent_status[agent] = "pending"
             
             if not openai_key or not finnhub_key:
                 st.error("Please configure both OpenAI and Finnhub API keys in your .env file")
@@ -486,47 +657,137 @@ with col_start:
             
             # Start analysis
             st.session_state.analysis_running = True
+            st.session_state.analysis_has_started = True
             st.session_state.analysis_results = None
             st.session_state.progress_messages.clear()
             
-            # Reset agent status
-            for agent in st.session_state.agent_status:
-                st.session_state.agent_status[agent] = "pending"
-            
             st.rerun()
+        
+        st.divider()
+    else:
+        # When analysis is running, use session state values if available
+        stock_symbol = st.session_state.get('current_stock_symbol', 'NVDA')
+        analysis_date = st.session_state.get('current_analysis_date', max_date)
+        max_debate_rounds = st.session_state.get('current_max_debate_rounds', 2)
+        max_risk_rounds = st.session_state.get('current_max_risk_rounds', 2)
+        online_tools = st.session_state.get('current_online_tools', True)
+        debug_mode = st.session_state.get('current_debug_mode', False)
 
-with col_stop:
+    # Stop Analysis button and progress - full width alignment
     if st.session_state.analysis_running:
-        if st.button("⏹️ Stop Analysis", type="secondary", use_container_width=True):
+        if st.button("⏹️ Stop Analysis", type="secondary", key="stop_analysis_main"):
             st.session_state.analysis_running = False
             st.rerun()
-
-with col_status:
-    if st.session_state.analysis_running:
-        # Compact progress display
+        
+        # Compact progress display - full width
         completed_agents = sum(1 for status in st.session_state.agent_status.values() if status == "complete")
         total_agents = len(st.session_state.agent_status)
         progress = completed_agents / total_agents if total_agents > 0 else 0
         st.progress(progress, text=f"Progress: {completed_agents}/{total_agents} agents completed")
 
-# Top-of-page analysis progress UI slot (shown immediately under Start/Stop controls)
-if st.session_state.analysis_running:
-    analysis_ui_slot = st.empty()
-    with analysis_ui_slot.container():
-        st.markdown('<div class="analysis-progress">', unsafe_allow_html=True)
+    # Analysis progress UI slot - full width alignment
+    if st.session_state.analysis_running:
         st.subheader("🔄 Analysis in Progress...")
-        # Placeholders reused by streaming section below
+        
+        # Progress bar and status
         st.session_state.progress_placeholder = st.empty()
         st.session_state.status_placeholder = st.empty()
-        st.session_state.live_feed = st.container()
+        
+        # Fixed-height streaming messages container using HTML iframe approach
+        st.markdown("### 💬 Live Analysis Feed")
+        
+        # Initialize streaming messages if not exists
+        if 'streaming_messages' not in st.session_state:
+            st.session_state.streaming_messages = []
+        
+        # Create a placeholder for the streaming container
+        st.session_state.streaming_placeholder = st.empty()
+        
         st.session_state.last_update_placeholder = st.empty()
 
-# Agent Status with Links to Outputs (only show if analysis has started or completed)
-if st.session_state.analysis_running or any(status != "pending" for status in st.session_state.agent_status.values()):
+# Agent Status section content (title already placed above)
+with agent_status_col:
+    # Global compact styling for all agent buttons - ULTRA AGGRESSIVE
+    st.markdown(
+        "<style>\n"
+        "/* ULTRA compact styling - target ALL possible Streamlit button containers */\n"
+        ".stButton { \n"
+        "  margin: 0 !important; \n"
+        "  margin-bottom: 0.1rem !important; \n"
+        "  padding: 0 !important; \n"
+        "}\n"
+        ".stButton > button { \n"
+        "  height: 1.3rem !important; \n"
+        "  min-height: 1.3rem !important; \n"
+        "  padding: 0.05rem 0.25rem !important; \n"
+        "  font-size: 0.6rem !important; \n"
+        "  line-height: 1.0 !important; \n"
+        "  white-space: nowrap !important; \n"
+        "  overflow: hidden !important; \n"
+        "  text-overflow: ellipsis !important; \n"
+        "  margin: 0 !important; \n"
+        "}\n"
+        "/* Remove ALL gaps and spacing in expanders */\n"
+        ".stExpander [data-testid='stVerticalBlock'] { \n"
+        "  gap: 0 !important; \n"
+        "}\n"
+        ".stExpander > div > div > div { \n"
+        "  gap: 0 !important; \n"
+        "  padding: 0 !important; \n"
+        "}\n"
+        "/* Target Streamlit's internal spacing */\n"
+        "[data-testid='stVerticalBlock'] > div { \n"
+        "  margin-bottom: 0.05rem !important; \n"
+        "}\n"
+        "/* Remove default Streamlit element spacing */\n"
+        ".element-container { \n"
+        "  margin-bottom: 0.05rem !important; \n"
+        "}\n"
+        "</style>",
+        unsafe_allow_html=True
+    )
     
-    # Only show during analysis - remove after completion to save space
-    if st.session_state.analysis_running:
-        st.markdown("### 🤖 Agent Status Overview")
+    # Simple CSS classes for button states - GUARANTEED TO WORK
+    st.markdown(
+        "<style>\n"
+        "/* AGENT BUTTON STATE CLASSES */\n"
+        ".agent-completed { \n"
+        "  background: linear-gradient(135deg, #2E865F 0%, #228B22 100%) !important; \n"
+        "  color: #ffffff !important; \n"
+        "  border: 0 !important; \n"
+        "}\n"
+        ".agent-running { \n"
+        "  background: linear-gradient(135deg, #007bff 0%, #0056b3 100%) !important; \n"
+        "  color: #ffffff !important; \n"
+        "  border: 0 !important; \n"
+        "}\n"
+        ".agent-waiting { \n"
+        "  background: #6c757d !important; \n"
+        "  color: #ffffff !important; \n"
+        "  border: 0 !important; \n"
+        "}\n"
+        "</style>",
+        unsafe_allow_html=True
+    )
+    
+    # Debug: Show current agent status state
+    if st.session_state.get('current_debug_mode', False):
+        st.write("Debug - Agent Status:", st.session_state.agent_status)
+        st.write("Debug - Analysis Running:", st.session_state.analysis_running)
+        st.write("Debug - Analysis Has Started:", st.session_state.get('analysis_has_started', False))
+    
+    # Always show agent status if analysis has started, completed, or if we have selected analysts
+    show_agent_status = (
+        st.session_state.analysis_running or 
+        any(status != "pending" for status in st.session_state.agent_status.values()) or
+        st.session_state.get('analysis_has_started', False) or
+        True  # Force show for debugging
+    )
+    
+    if show_agent_status:
+        
+        # Show status during analysis and after completion
+        # Always show teams if we're in agent status section
         teams = {
             "📈 Analyst Team": ["Market Analyst", "Social Analyst", "News Analyst", "Fundamentals Analyst"],
             "🔍 Research Team": ["Bull Researcher", "Bear Researcher", "Research Manager"],
@@ -537,180 +798,195 @@ if st.session_state.analysis_running or any(status != "pending" for status in st
         if "agent_cards" not in st.session_state:
             st.session_state.agent_cards = {}
 
+        # Define the agent card renderer function once
+        def _render_agent_card(placeholder, agent_name, status_val):
+            agent_labels = {
+                "Market Analyst": "📊 Market",
+                "Social Analyst": "👥 Social",
+                "News Analyst": "📰 News",
+                "Fundamentals Analyst": "💼 Fundamentals",
+                "Bull Researcher": "🐂 Bull",
+                "Bear Researcher": "🐻 Bear",
+                "Research Manager": "🎯 Manager",
+                "Trader": "💰 Trader",
+                "Risky Analyst": "⚡ Risky",
+                "Neutral Analyst": "⚖️ Neutral",
+                "Safe Analyst": "🛡️ Safe",
+                "Portfolio Manager": "📈 Portfolio",
+            }
+            agent_display = agent_labels.get(agent_name, agent_name.split()[-1])
+            # ensure epoch exists
+            if "render_epoch" not in st.session_state:
+                st.session_state.render_epoch = 0
+            key_suffix = f"_{st.session_state.render_epoch}"
+            with placeholder.container():
+                # Exactly one button. Wrap it in a div we can target directly.
+                _clean = agent_name.replace(' ', '_').lower()
+                is_running = (status_val == "running")
+                wrap_id = f"btnwrap_{_clean}{key_suffix if is_running else ''}"
+                if status_val == "running":
+                    # Glowing plate directly behind the button - compact running style
+                    st.markdown(
+                        f"<style>\n"
+                        f"#{wrap_id} {{ animation: agentPulse 2s infinite; }}\n"
+                        f"@keyframes agentPulse {{ 0% {{ box-shadow: 0 0 5px rgba(0, 123, 255, 0.3); }} 50% {{ box-shadow: 0 0 20px rgba(0, 123, 255, 0.8); }} 100% {{ box-shadow: 0 0 5px rgba(0, 123, 255, 0.3); }} }}\n"
+                        f"[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div .stButton > button,\n"
+                        f"[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div [data-testid^='baseButton'],\n"
+                        f"[data-testid='stVerticalBlock']:has(> div > #{wrap_id}) .stButton > button,\n"
+                        f"[data-testid='stVerticalBlock']:has(> div > #{wrap_id}) [data-testid^='baseButton'] {{ \n"
+                        f"  background: linear-gradient(135deg, #007bff 0%, #0056b3 100%) !important; \n"
+                        f"  color: #ffffff !important; \n"
+                        f"  border: 0 !important; \n"
+                        f"  padding: 0.15rem 0.4rem !important; \n"
+                        f"  min-height: 1.5rem !important; \n"
+                        f"  height: 1.5rem !important; \n"
+                        f"  font-size: 0.7rem !important; \n"
+                        f"  line-height: 1.2 !important; \n"
+                        f"  white-space: nowrap !important; \n"
+                        f"}}\n"
+                        f"</style>",
+                        unsafe_allow_html=True,
+                    )
+                    st.markdown(f"<div id=\"{wrap_id}\" class=\"agent-running\"></div>", unsafe_allow_html=True)
+                    label = f"{agent_display} — Live Progress"
+                    clicked = st.button(label, key=f"agent_{agent_name}_action{key_suffix}", use_container_width=True)
+                    st.markdown("</div>", unsafe_allow_html=True)
+                else:
+                    if status_val == "complete":
+                        # SIMPLE APPROACH: Use HTML div that looks like a button
+                        label = f"✅ {agent_display} — Complete"
+                        
+                        # Create a clickable div that looks like a dark green button
+                        button_id = f"completed_btn_{agent_name.replace(' ', '_')}_{key_suffix}"
+                        st.markdown(
+                            f"""
+                            <div id="{button_id}" onclick="" style="
+                                background: linear-gradient(135deg, #2E865F 0%, #228B22 100%);
+                                color: #ffffff;
+                                border: 0;
+                                border-radius: 0.375rem;
+                                padding: 0.05rem 0.25rem;
+                                margin-bottom: 0.1rem;
+                                height: 1.3rem;
+                                font-size: 0.6rem;
+                                line-height: 1.0;
+                                white-space: nowrap;
+                                cursor: pointer;
+                                text-align: center;
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                ">{label}</div>
+                            <script>
+                            document.getElementById('{button_id}').onclick = function() {{
+                                // Trigger the hidden Streamlit button
+                                const hiddenBtn = document.querySelector('button[data-testid="baseButton-secondary"][aria-label*="{agent_name}"]');
+                                if (hiddenBtn) hiddenBtn.click();
+                            }};
+                            </script>
+                            """,
+                            unsafe_allow_html=True
+                        )
+                        
+                        # Hidden Streamlit button for actual functionality
+                        if st.button("hidden", key=f"agent_{agent_name}_action{key_suffix}", 
+                                   help="Click to view results", label_visibility="hidden"):
+                            clicked = True
+                        else:
+                            clicked = False
+                    else:
+                        # pending/error state - compact dark gray styling
+                        st.markdown(
+                            f"<style>\n"
+                            f"[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div .stButton > button,\n"
+                            f"[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div [data-testid^='baseButton'],\n"
+                            f"[data-testid='stVerticalBlock']:has(> div > #{wrap_id}) .stButton > button,\n"
+                            f"[data-testid='stVerticalBlock']:has(> div > #{wrap_id}) [data-testid^='baseButton'] {{ \n"
+                            f"  background: #6c757d !important; \n"
+                            f"  color: #ffffff !important; \n"
+                            f"  border: 0 !important; \n"
+                            f"  box-shadow: none !important; \n"
+                            f"  padding: 0.25rem 0.5rem !important; \n"
+                            f"  min-height: 2rem !important; \n"
+                            f"  height: 2rem !important; \n"
+                            f"  font-size: 0.85rem !important; \n"
+                            f"}}\n"
+                            f"</style>",
+                            unsafe_allow_html=True,
+                        )
+                        st.markdown(f"<div id=\"{wrap_id}\" class=\"agent-waiting\"></div>", unsafe_allow_html=True)
+                        label = f"⏳ {agent_display} — Waiting"
+                        clicked = st.button(label, key=f"agent_{agent_name}_action{key_suffix}", use_container_width=True)
+                        st.markdown("</div>", unsafe_allow_html=True)
+
+                if clicked:
+                    st.session_state.selected_agent = agent_name
+                    st.session_state.show_agent_details = True
+
+        # Now render all teams and agents
         for team_name, agents in teams.items():
             completed = sum(1 for agent in agents if st.session_state.agent_status[agent] == 'complete')
             total = len(agents)
             
             with st.expander(f"{team_name} ({completed}/{total} complete)", expanded=True):
-                cols = st.columns(len(agents))
-                for i, agent in enumerate(agents):
-                    with cols[i]:
-                        # Each card renders into its own placeholder so we can refresh during streaming
-                        ph = st.empty()
-                        st.session_state.agent_cards[agent] = ph
-                        # Initial render
-                        status = st.session_state.agent_status[agent]
-                        _render_agent_card = _render_agent_card if '_render_agent_card' in globals() else None
-                        if _render_agent_card is None:
-                            # define lightweight renderer
-                            def _render_agent_card(placeholder, agent_name, status_val):
-                                agent_labels = {
-                                    "Market Analyst": "📊 Market",
-                                    "Social Analyst": "👥 Social",
-                                    "News Analyst": "📰 News",
-                                    "Fundamentals Analyst": "💼 Fundamentals",
-                                    "Bull Researcher": "🐂 Bull",
-                                    "Bear Researcher": "🐻 Bear",
-                                    "Research Manager": "🎯 Manager",
-                                    "Trader": "💰 Trader",
-                                    "Risky Analyst": "⚡ Risky",
-                                    "Neutral Analyst": "⚖️ Neutral",
-                                    "Safe Analyst": "🛡️ Safe",
-                                    "Portfolio Manager": "📈 Portfolio",
-                                }
-                                agent_display = agent_labels.get(agent_name, agent_name.split()[-1])
-                                # ensure epoch exists
-                                if "render_epoch" not in st.session_state:
-                                    st.session_state.render_epoch = 0
-                                key_suffix = f"_{st.session_state.render_epoch}"
-                                with placeholder.container():
-                                    # Exactly one button. Wrap it in a div we can target directly.
-                                    _clean = agent_name.replace(' ', '_').lower()
-                                    is_running = (status_val == "running")
-                                    wrap_id = f"btnwrap_{_clean}{key_suffix if is_running else ''}"
-                                    if status_val == "running":
-                                        # Glowing plate directly behind the button
-                                        st.markdown(
-                                            f"<style>\n"
-                                            f"@keyframes agentPulse {{\n"
-                                            f"  0%   {{ transform: scale(1);   box-shadow: 0 0 10px rgba(0,153,255,0.35); }}\n"
-                                            f"  50%  {{ transform: scale(1.04); box-shadow: 0 0 30px rgba(0,153,255,0.9); }}\n"
-                                            f"  100% {{ transform: scale(1);   box-shadow: 0 0 10px rgba(0,153,255,0.35); }}\n"
-                                            f"}}\n"
-                                            f"#{wrap_id} {{\n"
-                                            f"  background: linear-gradient(135deg, rgba(0,123,255,0.20) 0%, rgba(0,86,179,0.20) 100%);\n"
-                                            f"  padding: 6px; border-radius: 12px;\n"
-                                            f"  animation: agentPulse 1.1s ease-in-out infinite !important;\n"
-                                            f"}}\n"
-                                            f"/* Color the actual button in the next block after our wrapper */\n"
-                                            f"[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div .stButton > button,\n"
-                                            f"[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div [data-testid^='baseButton'] {{ position: relative; z-index: 1; background: linear-gradient(135deg, #0d6efd 0%, #0b5ed7 100%) !important; color: #ffffff !important; border: 0 !important; box-shadow: none !important; }}\n"
-                                            f"[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div .stButton > button:hover,\n"
-                                            f"[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div [data-testid^='baseButton']:hover,\n"
-                                            f"[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div .stButton > button:active,\n"
-                                            f"[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div [data-testid^='baseButton']:active,\n"
-                                            f"[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div .stButton > button:focus-visible,\n"
-                                            f"[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div [data-testid^='baseButton']:focus-visible {{ background: linear-gradient(135deg, #0d6efd 0%, #0b5ed7 100%) !important; color: #ffffff !important; border: 0 !important; box-shadow: none !important; outline: none !important; }}\n"
-                                            f"</style>",
-                                            unsafe_allow_html=True,
-                                        )
-                                        st.markdown(f"<div id=\"{wrap_id}\">", unsafe_allow_html=True)
-                                        label = f"{agent_display} — View Live Progress"
-                                        btn_type = "primary"
-                                        clicked = st.button(label, key=f"agent_{agent_name}_action{key_suffix}", use_container_width=True, type=btn_type)
-                                        st.markdown("</div>", unsafe_allow_html=True)
-                                    else:
-                                        if status_val == "complete":
-                                            # Cancel any lingering animation by rendering a non-animated wrapper
-                                            st.markdown(
-                                                f"<style>\n#{wrap_id} {{ animation: none !important; box-shadow: none !important; }}\n"
-                                                f"[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div .stButton > button,\n"
-                                                f"[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div [data-testid^='baseButton'],\n"
-                                                f"[data-testid='stVerticalBlock']:has(> div > #{wrap_id}) .stButton > button,\n"
-                                                f"[data-testid='stVerticalBlock']:has(> div > #{wrap_id}) [data-testid^='baseButton'] {{ background: linear-gradient(135deg, #2E865F 0%, #228B22 100%) !important; color: #ffffff !important; border: 0 !important; box-shadow: none !important; }}\n"
-                                                f"[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div .stButton > button:hover,\n"
-                                                f"[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div [data-testid^='baseButton']:hover,\n"
-                                                f"[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div .stButton > button:active,\n"
-                                                f"[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div [data-testid^='baseButton']:active,\n"
-                                                f"[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div .stButton > button:focus-visible,\n"
-                                                f"[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div [data-testid^='baseButton']:focus-visible,\n"
-                                                f"[data-testid='stVerticalBlock']:has(> div > #{wrap_id}) .stButton > button:hover,\n"
-                                                f"[data-testid='stVerticalBlock']:has(> div > #{wrap_id}) [data-testid^='baseButton']:hover,\n"
-                                                f"[data-testid='stVerticalBlock']:has(> div > #{wrap_id}) .stButton > button:active,\n"
-                                                f"[data-testid='stVerticalBlock']:has(> div > #{wrap_id}) [data-testid^='baseButton']:active,\n"
-                                                f"[data-testid='stVerticalBlock']:has(> div > #{wrap_id}) .stButton > button:focus-visible,\n"
-                                                f"[data-testid='stVerticalBlock']:has(> div > #{wrap_id}) [data-testid^='baseButton']:focus-visible {{ background: linear-gradient(135deg, #2E865F 0%, #228B22 100%) !important; color: #ffffff !important; border: 0 !important; box-shadow: none !important; outline: none !important; }}\n</style>",
-                                                unsafe_allow_html=True,
-                                            )
-                                            label = f"✅ View {agent_display} Results"
-                                            btn_type = "secondary"
-                                            st.markdown(f"<div id=\"{wrap_id}\">", unsafe_allow_html=True)
-                                            clicked = st.button(label, key=f"agent_{agent_name}_action{key_suffix}", use_container_width=True, type=btn_type)
-                                            st.markdown("</div>", unsafe_allow_html=True)
-                                        elif status_val == "error":
-                                            st.markdown(
-                                                f"<style>\n#{wrap_id} {{ animation: none !important; box-shadow: none !important; }}\n[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div .stButton > button,\n[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div [data-testid^='baseButton'] {{ background: linear-gradient(135deg, #6c757d 0%, #5c636a 100%) !important; color: #e2e3e5 !important; border: 0 !important; box-shadow: none !important; }}\n[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div .stButton > button:hover,\n[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div [data-testid^='baseButton']:hover,\n[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div .stButton > button:active,\n[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div [data-testid^='baseButton']:active,\n[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div .stButton > button:focus-visible,\n[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div [data-testid^='baseButton']:focus-visible {{ background: linear-gradient(135deg, #6c757d 0%, #5c636a 100%) !important; color: #e2e3e5 !important; border: 0 !important; box-shadow: none !important; outline: none !important; }}\n</style>",
-                                                unsafe_allow_html=True,
-                                            )
-                                            label = f"❌ {agent_display} — View Error Details"
-                                            btn_type = "secondary"
-                                            st.markdown(f"<div id=\"{wrap_id}\">", unsafe_allow_html=True)
-                                            clicked = st.button(label, key=f"agent_{agent_name}_action{key_suffix}", use_container_width=True, type=btn_type)
-                                            st.markdown("</div>", unsafe_allow_html=True)
-                                        else:
-                                            st.markdown(
-                                                f"<style>\n#{wrap_id} {{ animation: none !important; box-shadow: none !important; }}\n[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div .stButton > button,\n[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div [data-testid^='baseButton'] {{ background: linear-gradient(135deg, #2b2f36 0%, #23272c 100%) !important; color: #dfe3e6 !important; border: 0 !important; box-shadow: none !important; }}\n[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div .stButton > button:hover,\n[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div [data-testid^='baseButton']:hover,\n[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div .stButton > button:active,\n[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div [data-testid^='baseButton']:active,\n[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div .stButton > button:focus-visible,\n[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div [data-testid^='baseButton']:focus-visible {{ background: linear-gradient(135deg, #2b2f36 0%, #23272c 100%) !important; color: #dfe3e6 !important; border: 0 !important; box-shadow: none !important; outline: none !important; }}\n</style>",
-                                                unsafe_allow_html=True,
-                                            )
-                                            label = f"⏳ {agent_display} — Waiting"
-                                            btn_type = "secondary"
-                                            st.markdown(f"<div id=\"{wrap_id}\">", unsafe_allow_html=True)
-                                            clicked = st.button(label, key=f"agent_{agent_name}_action{key_suffix}", use_container_width=True, type=btn_type)
-                                            st.markdown("</div>", unsafe_allow_html=True)
-
-                                    if clicked:
-                                        st.session_state.selected_agent = agent_name
-                                        st.session_state.show_agent_details = True
-                        _render_agent_card(ph, agent, status)
-    
-    # Show actionable agent outputs after completion
-    elif st.session_state.analysis_results and not st.session_state.analysis_running:
-        st.markdown("### 📈 Agent Contributions Summary")
+                # Aggressive compact layout with minimal spacing
+                st.markdown(
+                    "<style>\n"
+                    "/* Remove all gaps and margins between buttons */\n"
+                    ".stExpander > div > div > div { gap: 0 !important; }\n"
+                    ".stButton { margin: 0 !important; margin-bottom: 0.1rem !important; }\n"
+                    "/* Make all buttons in this expander compact */\n"
+                    ".stExpander .stButton > button { \n"
+                    "  height: 1.5rem !important; \n"
+                    "  min-height: 1.5rem !important; \n"
+                    "  padding: 0.15rem 0.4rem !important; \n"
+                    "  font-size: 0.7rem !important; \n"
+                    "  line-height: 1.2 !important; \n"
+                    "  white-space: nowrap !important; \n"
+                    "  overflow: hidden !important; \n"
+                    "  text-overflow: ellipsis !important; \n"
+                    "}\n"
+                    "</style>",
+                    unsafe_allow_html=True
+                )
+                # Use single column layout for better visibility in sidebar
+                for agent in agents:
+                    # Each card renders into its own placeholder so we can refresh during streaming
+                    ph = st.empty()
+                    st.session_state.agent_cards[agent] = ph
+                    # Initial render
+                    status = st.session_state.agent_status[agent]
+                    _render_agent_card(ph, agent, status)
         
-        final_state = st.session_state.analysis_results.get('result', {})
-        
-        # Create quick links to agent outputs
-        col1, col2, col3, col4 = st.columns(4)
-        
-        with col1:
+        # Show actionable agent outputs after completion
+        if st.session_state.analysis_results and not st.session_state.analysis_running:
+            st.markdown("### 📈 Agent Contributions Summary")
+            
+            final_state = st.session_state.analysis_results.get('result', {})
+            
+            # Create quick links to agent outputs - use single column for sidebar
             if final_state.get('market_report'):
-                if st.button("📈 Market Analysis", use_container_width=True):
+                if st.button("📈 Market Analysis", use_container_width=True, key="market_btn"):
                     st.session_state.show_section = "market"
                     st.rerun()
-        
-        with col2:
+            
             if final_state.get('news_report'):
-                if st.button("📰 News Analysis", use_container_width=True):
+                if st.button("📰 News Analysis", use_container_width=True, key="news_btn"):
                     st.session_state.show_section = "news"
                     st.rerun()
-        
-        with col3:
+            
             if final_state.get('fundamentals_report'):
-                if st.button("💰 Fundamentals", use_container_width=True):
+                if st.button("💰 Fundamentals", use_container_width=True, key="fundamentals_btn"):
                     st.session_state.show_section = "fundamentals"
                     st.rerun()
-        
-        with col4:
+            
             if final_state.get('trader_investment_plan'):
-                if st.button("⚖️ Risk Assessment", use_container_width=True):
+                if st.button("⚖️ Risk Assessment", use_container_width=True, key="risk_btn"):
                     st.session_state.show_section = "risk"
                     st.rerun()
-        
-        # Show selected section content
-        if hasattr(st.session_state, 'show_section'):
-            st.markdown("---")
-            if st.session_state.show_section == "market" and final_state.get('market_report'):
-                st.markdown("**Market Analyst Report:**")
-                st.markdown(final_state['market_report'])
-            elif st.session_state.show_section == "news" and final_state.get('news_report'):
-                st.markdown("**News Analyst Report:**")
-                st.markdown(final_state['news_report'])
-            elif st.session_state.show_section == "fundamentals" and final_state.get('fundamentals_report'):
-                st.markdown("**Fundamentals Analyst Report:**")
-                st.markdown(final_state['fundamentals_report'])
-            elif st.session_state.show_section == "risk" and final_state.get('trader_investment_plan'):
-                st.markdown("**Trading & Risk Assessment:**")
-                st.markdown(final_state['trader_investment_plan'])
+    else:
+        st.info("🔄 Start an analysis to see agent status updates")
+
     
     # Agent Details Modal (when agent is clicked)
     if st.session_state.get('show_agent_details') and st.session_state.get('selected_agent'):
@@ -996,9 +1272,9 @@ if st.session_state.analysis_running or any(status != "pending" for status in st
     
     # Note: Removed duplicate Live Activity Feed to avoid redundancy with agent details modal
 
-# Analysis Progress and Results
-if st.session_state.analysis_running:
-        # Bind to the placeholders created near the Start button so the UI appears just below it
+    # Analysis Progress and Results
+    if st.session_state.analysis_running:
+            # Bind to the placeholders created near the Start button so the UI appears just below it
         progress_bar_ph = st.session_state.get("progress_placeholder")
         status_text_ph = st.session_state.get("status_placeholder")
         live_feed = st.session_state.get("live_feed")
@@ -1324,13 +1600,14 @@ if st.session_state.analysis_running:
                             f"</style>",
                             unsafe_allow_html=True,
                         )
-                        st.markdown(f"<div id=\"{wrap_id}\">", unsafe_allow_html=True)
+                        st.markdown(f"<div id=\"{wrap_id}\" class=\"agent-waiting\"></div>", unsafe_allow_html=True)
                         label = f"⏳ {agent_display} — Waiting"
                         clicked = st.button(label, key=f"agent_{agent_name}_action{key_suffix}", use_container_width=True)
                         st.markdown("</div>", unsafe_allow_html=True)
-                    if clicked:
-                        st.session_state.selected_agent = agent_name
-                        st.session_state.show_agent_details = True
+
+                if clicked:
+                    st.session_state.selected_agent = agent_name
+                    st.session_state.show_agent_details = True
 
             # Human-friendly status line per agent
             _agent_running_msg = {
@@ -1431,8 +1708,43 @@ if st.session_state.analysis_running:
                     if msgs:
                         last_msg = msgs[-1]
                         text = _extract_msg_text(last_msg)
-                        with live_feed:
-                            st.markdown(f"- 💬 {text}")
+                        
+                        # Add message to session state for accumulation
+                        if 'streaming_messages' not in st.session_state:
+                            st.session_state.streaming_messages = []
+                        st.session_state.streaming_messages.append(f"💬 {text}")
+                        
+                        # Update the streaming container with all messages
+                        messages_html = "<br>".join([f"<div style='margin: 4px 0; padding: 8px; background: #ffffff; border-left: 3px solid #007bff; border-radius: 4px; font-family: monospace; font-size: 14px; color: #333333; box-shadow: 0 1px 3px rgba(0,0,0,0.1);'>• {msg}</div>" for msg in st.session_state.streaming_messages[-50:]])
+                        
+                        # Display in fixed-height scrollable container - height matches agent button area
+                        st.session_state.streaming_placeholder.markdown(f"""
+                        <div style="
+                            height: 550px;
+                            overflow-y: auto;
+                            border: 1px solid #e0e0e0;
+                            border-radius: 8px;
+                            padding: 1rem;
+                            background: #f8f9fa;
+                            margin: 1rem 0;
+                            box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);
+                        ">
+                            {messages_html if messages_html.strip() else '<div style="color: #666; font-style: italic; text-align: center; padding: 2rem;">Waiting for analysis messages...</div>'}
+                        </div>
+                        """, unsafe_allow_html=True)
+                        
+                        # Separate JavaScript injection for auto-scroll
+                        st.markdown("""
+                        <script>
+                        setTimeout(function() {
+                            var containers = document.querySelectorAll('div[style*="height: 400px"]');
+                            containers.forEach(function(container) {
+                                container.scrollTop = container.scrollHeight;
+                            });
+                        }, 100);
+                        </script>
+                        """, unsafe_allow_html=True)
+                        
                         last_update.caption(f"Last update • {time.strftime('%H:%M:%S')}")
                         _infer_agent_and_update_status(text)
                         # Tool-calls (OpenAI-style)
@@ -1542,15 +1854,14 @@ if st.session_state.analysis_running:
                     # Advance animation epoch so running buttons/spinners update frames
                     st.session_state.render_epoch = (st.session_state.get("render_epoch", 0) + 1) % 100000
                     # Animate per-agent spinner placeholders without re-rendering entire cards
-                    epoch = st.session_state.render_epoch
-                    frames = ["⠋","⠙","⠹","⠸","⠼","⠴","⠦","⠧","⠇","⠏"]
-                    spin = frames[epoch % len(frames)]
-                    for _agent, _status in list(st.session_state.agent_status.items()):
-                        if _status == "running":
-                            sp_map = st.session_state.get("agent_spinner_ph", {})
-                            sp_ph = sp_map.get(_agent)
-                            if sp_ph is not None:
-                                sp_ph.markdown(f"<div style='font-size:18px; line-height:28px;'>{spin}</div>", unsafe_allow_html=True)
+                    for agent in st.session_state.agent_status:
+                        if st.session_state.agent_status[agent] == "running":
+                            _refresh_card(agent)
+                    
+                    # Auto-scroll is now handled in the message update above
+                    
+                    # Brief pause to control update frequency
+                    time.sleep(0.1)
 
                 # If completed normally
                 if st.session_state.analysis_running:
@@ -1609,114 +1920,114 @@ if st.session_state.analysis_running:
                 st.exception(e)
         finally:
             st.markdown('</div>', unsafe_allow_html=True)
-if st.session_state.analysis_results and not st.session_state.analysis_running:
-        results = st.session_state.analysis_results
+    if st.session_state.analysis_results and not st.session_state.analysis_running:
+            results = st.session_state.analysis_results
         
-        st.markdown('<div class="result-container">', unsafe_allow_html=True)
+            st.markdown('<div class="result-container">', unsafe_allow_html=True)
         
-        # Results Header with Metrics
-        st.subheader(f"📈 Complete Analysis Report: {results['symbol']}")
+            # Results Header with Metrics
+            st.subheader(f"📈 Complete Analysis Report: {results['symbol']}")
         
-        # Key Metrics Row
-        col_m1, col_m2, col_m3, col_m4 = st.columns(4)
-        with col_m1:
-            st.metric("Stock Symbol", results['symbol'])
-        with col_m2:
-            st.metric("Analysis Date", results['date'])
-        with col_m3:
-            st.metric("Completed", results['timestamp'])
-        with col_m4:
-            # Extract decision from results for metric
-            decision_summary = "BUY" if "BUY" in str(results['decision']).upper() else "HOLD" if "HOLD" in str(results['decision']).upper() else "SELL" if "SELL" in str(results['decision']).upper() else "ANALYZE"
-            st.metric("Recommendation", decision_summary)
-        
-        st.divider()
-        
-        # Complete Team-Based Report Sections (100% CLI feature parity)
-        tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
-            "🎯 Final Decision", 
-            "📊 I. Analyst Team", 
-            "🔍 II. Research Team", 
-            "💰 III. Trading Team", 
-            "⚖️ IV. Risk Management", 
-            "📈 V. Portfolio Manager"
-        ])
-        
-        final_state = results.get('result', {})
-        
-        with tab1:
-            st.subheader("🎯 Final Trading Decision & Summary")
+            # Key Metrics Row
+            col_m1, col_m2, col_m3, col_m4 = st.columns(4)
+            with col_m1:
+                st.metric("Stock Symbol", results['symbol'])
+            with col_m2:
+                st.metric("Analysis Date", results['date'])
+            with col_m3:
+                st.metric("Completed", results['timestamp'])
+            with col_m4:
+                # Extract decision from results for metric
+                decision_summary = "BUY" if "BUY" in str(results['decision']).upper() else "HOLD" if "HOLD" in str(results['decision']).upper() else "SELL" if "SELL" in str(results['decision']).upper() else "ANALYZE"
+                st.metric("Recommendation", decision_summary)
             
-            # Display final decision prominently
-            if results['decision']:
-                st.success(f"**Final Recommendation:** {results['decision']}")
+            st.divider()
+            
+            # Complete Team-Based Report Sections (100% CLI feature parity)
+            tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+                "🎯 Final Decision", 
+                "📊 I. Analyst Team", 
+                "🔍 II. Research Team", 
+                "💰 III. Trading Team", 
+                "⚖️ IV. Risk Management", 
+                "📈 V. Portfolio Manager"
+            ])
+            
+            final_state = results.get('result', {})
+            
+            with tab1:
+                st.subheader("🎯 Final Trading Decision & Summary")
                 
-                # Show decision breakdown if available
-                if isinstance(results['decision'], dict):
-                    with st.expander("📋 Decision Details"):
-                        st.json(results['decision'])
+                # Display final decision prominently
+                if results['decision']:
+                    st.success(f"**Final Recommendation:** {results['decision']}")
+                    
+                    # Show decision breakdown if available
+                    if isinstance(results['decision'], dict):
+                        with st.expander("📋 Decision Details"):
+                            st.json(results['decision'])
+                
+                # Executive Summary
+                st.markdown("### 📋 Executive Summary")
+                
+                # Quick overview of all team decisions
+                summary_cols = st.columns(2)
+                
+                with summary_cols[0]:
+                    st.markdown("**🔍 Research Team Conclusion:**")
+                    if final_state.get('investment_debate_state', {}).get('judge_decision'):
+                        research_decision = final_state['investment_debate_state']['judge_decision'][:200] + "..."
+                        st.info(research_decision)
+                    else:
+                        st.warning("Research decision pending")
+                
+                with summary_cols[1]:
+                    st.markdown("**📈 Portfolio Manager Decision:**")
+                    if final_state.get('risk_debate_state', {}).get('judge_decision'):
+                        portfolio_decision = final_state['risk_debate_state']['judge_decision'][:200] + "..."
+                        st.success(portfolio_decision)
+                    else:
+                        st.warning("Portfolio decision pending")
             
-            # Executive Summary
-            st.markdown("### 📋 Executive Summary")
+            with tab2:
+                st.subheader("📊 I. Analyst Team Reports")
+                st.markdown("*Detailed analysis from our core analyst team*")
             
-            # Quick overview of all team decisions
-            summary_cols = st.columns(2)
+                # Market Analyst Report
+                if final_state.get('market_report'):
+                    with st.container():
+                        st.markdown("#### 📈 Market Analyst Report")
+                        st.markdown(final_state['market_report'])
+                        st.divider()
+                
+                # Social Analyst Report
+                if final_state.get('sentiment_report'):
+                    with st.container():
+                        st.markdown("#### 👥 Social Analyst Report")
+                        st.markdown(final_state['sentiment_report'])
+                        st.divider()
+                
+                # News Analyst Report
+                if final_state.get('news_report'):
+                    with st.container():
+                        st.markdown("#### 📰 News Analyst Report")
+                        st.markdown(final_state['news_report'])
+                        st.divider()
+                
+                # Fundamentals Analyst Report
+                if final_state.get('fundamentals_report'):
+                    with st.container():
+                        st.markdown("#### 💼 Fundamentals Analyst Report")
+                        st.markdown(final_state['fundamentals_report'])
+                
+                # Show message if no reports available
+                if not any([final_state.get('market_report'), final_state.get('sentiment_report'), 
+                           final_state.get('news_report'), final_state.get('fundamentals_report')]):
+                    st.info("📊 Analyst team reports are still being generated...")
             
-            with summary_cols[0]:
-                st.markdown("**🔍 Research Team Conclusion:**")
-                if final_state.get('investment_debate_state', {}).get('judge_decision'):
-                    research_decision = final_state['investment_debate_state']['judge_decision'][:200] + "..."
-                    st.info(research_decision)
-                else:
-                    st.warning("Research decision pending")
-            
-            with summary_cols[1]:
-                st.markdown("**📈 Portfolio Manager Decision:**")
-                if final_state.get('risk_debate_state', {}).get('judge_decision'):
-                    portfolio_decision = final_state['risk_debate_state']['judge_decision'][:200] + "..."
-                    st.success(portfolio_decision)
-                else:
-                    st.warning("Portfolio decision pending")
-        
-        with tab2:
-            st.subheader("📊 I. Analyst Team Reports")
-            st.markdown("*Detailed analysis from our core analyst team*")
-            
-            # Market Analyst Report
-            if final_state.get('market_report'):
-                with st.container():
-                    st.markdown("#### 📈 Market Analyst Report")
-                    st.markdown(final_state['market_report'])
-                    st.divider()
-            
-            # Social Analyst Report
-            if final_state.get('sentiment_report'):
-                with st.container():
-                    st.markdown("#### 👥 Social Analyst Report")
-                    st.markdown(final_state['sentiment_report'])
-                    st.divider()
-            
-            # News Analyst Report
-            if final_state.get('news_report'):
-                with st.container():
-                    st.markdown("#### 📰 News Analyst Report")
-                    st.markdown(final_state['news_report'])
-                    st.divider()
-            
-            # Fundamentals Analyst Report
-            if final_state.get('fundamentals_report'):
-                with st.container():
-                    st.markdown("#### 💼 Fundamentals Analyst Report")
-                    st.markdown(final_state['fundamentals_report'])
-            
-            # Show message if no reports available
-            if not any([final_state.get('market_report'), final_state.get('sentiment_report'), 
-                       final_state.get('news_report'), final_state.get('fundamentals_report')]):
-                st.info("📊 Analyst team reports are still being generated...")
-        
-        with tab3:
-            st.subheader("🔍 II. Research Team Decision")
-            st.markdown("*Investment research debate and conclusions*")
+            with tab3:
+                st.subheader("🔍 II. Research Team Decision")
+                st.markdown("*Investment research debate and conclusions*")
             
             if final_state.get('investment_debate_state'):
                 debate_state = final_state['investment_debate_state']
@@ -1742,10 +2053,10 @@ if st.session_state.analysis_results and not st.session_state.analysis_running:
                         st.success(debate_state['judge_decision'])
             else:
                 st.info("🔍 Research team debate is still in progress...")
-        
-        with tab4:
-            st.subheader("💰 III. Trading Team Plan")
-            st.markdown("*Strategic trading recommendations and execution plan*")
+            
+            with tab4:
+                st.subheader("💰 III. Trading Team Plan")
+                st.markdown("*Strategic trading recommendations and execution plan*")
             
             if final_state.get('trader_investment_plan'):
                 with st.container():
@@ -1753,10 +2064,10 @@ if st.session_state.analysis_results and not st.session_state.analysis_running:
                     st.markdown(final_state['trader_investment_plan'])
             else:
                 st.info("💰 Trading team plan is still being developed...")
-        
-        with tab5:
-            st.subheader("⚖️ IV. Risk Management Team Decision")
-            st.markdown("*Comprehensive risk assessment from multiple perspectives*")
+            
+            with tab5:
+                st.subheader("⚖️ IV. Risk Management Team Decision")
+                st.markdown("*Comprehensive risk assessment from multiple perspectives*")
             
             if final_state.get('risk_debate_state'):
                 risk_state = final_state['risk_debate_state']
@@ -1782,65 +2093,34 @@ if st.session_state.analysis_results and not st.session_state.analysis_running:
                         st.markdown(risk_state['neutral_history'])
             else:
                 st.info("⚖️ Risk management team assessment is still in progress...")
-        
-        with tab6:
-            st.subheader("📈 V. Portfolio Manager Decision")
-            st.markdown("*Final portfolio allocation and investment decision*")
             
-            if final_state.get('risk_debate_state', {}).get('judge_decision'):
-                with st.container():
-                    st.markdown("#### 📈 Portfolio Manager Final Decision")
-                    st.success(final_state['risk_debate_state']['judge_decision'])
-                    
-                    # Show final trade decision if available
-                    if final_state.get('final_trade_decision'):
-                        st.markdown("#### 🎯 Final Trade Decision")
-                        st.info(final_state['final_trade_decision'])
-            else:
-                st.info("📈 Portfolio manager decision is still being finalized...")
-
-        
-        # Detailed Analysis (if debug mode)
-        if debug_mode and results['result']:
-            st.divider()
-            st.subheader("🔍 Complete Technical Analysis (Debug Mode)")
-            with st.expander("View Full Raw Analysis Results"):
-                if isinstance(results['result'], dict):
-                    st.json(results['result'])
+            with tab6:
+                st.subheader("📈 V. Portfolio Manager Final Decision")
+                st.markdown("*Executive summary and final trading recommendation and investment decision*")
+                
+                if final_state.get('risk_debate_state', {}).get('judge_decision'):
+                    with st.container():
+                        st.markdown("#### 📈 Portfolio Manager Final Decision")
+                        st.success(final_state['risk_debate_state']['judge_decision'])
+                        
+                        # Show final trade decision if available
+                        if final_state.get('final_trade_decision'):
+                            st.markdown("#### 🎯 Final Trade Decision")
+                            st.info(final_state['final_trade_decision'])
                 else:
-                    st.text(str(results['result']))
-        
-        st.markdown('</div>', unsafe_allow_html=True)
+                    st.info("📈 Portfolio manager decision is still being finalized...")
 
-st.divider()
+            
+            # Detailed Analysis (if debug mode)
+            if debug_mode and results['result']:
+                st.divider()
+                st.subheader("🔍 Complete Technical Analysis (Debug Mode)")
+                with st.expander("View Full Raw Analysis Results"):
+                    if isinstance(results['result'], dict):
+                        st.json(results['result'])
+                    else:
+                        st.text(str(results['result']))
+            
+            st.markdown('</div>', unsafe_allow_html=True)
 
-st.subheader("ℹ️ About TradingAgents")
-
-st.markdown("""
-**TradingAgents** is a sophisticated multi-agent framework that uses AI collaboration to make informed trading decisions.
-
-**🎯 Key Features:**
-- 🤝 Multi-agent collaboration
-- 🎯 Structured debate system
-- 📈 Real-time financial data
-- 🧠 Memory-based learning
-- 🔒 Privacy-focused design
-
-**📚 Research:** Published in arXiv:2412.20138
-""")
-
-st.markdown("""
-**🔗 Links:**
-- [GitHub Repository](https://github.com/TauricResearch/TradingAgents)
-- [Research Paper](https://arxiv.org/abs/2412.20138)
-- [Discord Community](https://discord.com/invite/hk9PGKShPK)
-""")
-
-st.markdown("---")
-st.markdown("""
-<div style="text-align: center; color: #666; padding: 2rem;">
-    <p><strong>TradingAgents - Multi-Agent LLM Financial Trading Framework</strong></p>
-    <p>Developed by <a href="https://tauric.ai/" target="_blank">Tauric Research</a> | Enhanced UI by <a href="https://agentopia.github.io/" target="_blank">Agentopia</a></p>
-    <p><em>⚠️ This framework is designed for research purposes. Trading performance may vary. Not intended as financial advice.</em></p>
-</div>
-""", unsafe_allow_html=True)
+# About section moved to sidebar for cleaner main content area
