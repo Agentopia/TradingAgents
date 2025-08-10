@@ -101,18 +101,30 @@ st.markdown("""
         text-align: center;
         margin: 0.5rem;
     }
-    .stButton > button {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        border: none;
-        border-radius: 10px;
-        padding: 0.75rem 2rem;
-        font-weight: bold;
-        transition: all 0.3s ease;
+    /* Neutral baseline for all Streamlit buttons (app-only) */
+    .stButton > button,
+    [data-testid^="baseButton"] {
+        background: linear-gradient(135deg, #2b2f36 0%, #23272c 100%) !important;
+        color: #dfe3e6 !important;
+        border: none !important;
+        border-radius: 10px !important;
+        padding: 0.75rem 2rem !important;
+        font-weight: bold !important;
+        transition: all 0.3s ease !important;
+        box-shadow: none !important;
     }
-    .stButton > button:hover {
+    .stButton > button:hover,
+    [data-testid^="baseButton"]:hover,
+    .stButton > button:active,
+    [data-testid^="baseButton"]:active,
+    .stButton > button:focus-visible,
+    [data-testid^="baseButton"]:focus-visible {
+        background: linear-gradient(135deg, #2b2f36 0%, #23272c 100%) !important;
+        color: #dfe3e6 !important;
+        border: none !important;
+        outline: none !important;
+        box-shadow: none !important;
         transform: translateY(-2px);
-        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
     }
     .analysis-progress {
         background: #f8f9fa;
@@ -228,26 +240,17 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Initialize session state
-if 'analysis_running' not in st.session_state:
+# Ensure default session state
+if "analysis_running" not in st.session_state:
     st.session_state.analysis_running = False
-if 'analysis_results' not in st.session_state:
+if "analysis_results" not in st.session_state:
     st.session_state.analysis_results = None
-if 'agent_status' not in st.session_state:
-    st.session_state.agent_status = {
-        "Market Analyst": "pending",
-        "Social Analyst": "pending", 
-        "News Analyst": "pending",
-        "Fundamentals Analyst": "pending",
-        "Bull Researcher": "pending",
-        "Bear Researcher": "pending",
-        "Research Manager": "pending",
-        "Trader": "pending",
-        "Risky Analyst": "pending",
-        "Neutral Analyst": "pending",
-        "Safe Analyst": "pending",
-        "Portfolio Manager": "pending"
-    }
+if "agent_status" not in st.session_state:
+    st.session_state.agent_status = {a: "pending" for a in [
+        "Market Analyst", "Social Analyst", "News Analyst", "Fundamentals Analyst",
+        "Bull Researcher", "Bear Researcher", "Research Manager", "Trader",
+        "Risky Analyst", "Neutral Analyst", "Safe Analyst", "Portfolio Manager"
+    ]}
 if 'progress_messages' not in st.session_state:
     st.session_state.progress_messages = deque(maxlen=50)
 
@@ -506,6 +509,18 @@ with col_status:
         progress = completed_agents / total_agents if total_agents > 0 else 0
         st.progress(progress, text=f"Progress: {completed_agents}/{total_agents} agents completed")
 
+# Top-of-page analysis progress UI slot (shown immediately under Start/Stop controls)
+if st.session_state.analysis_running:
+    analysis_ui_slot = st.empty()
+    with analysis_ui_slot.container():
+        st.markdown('<div class="analysis-progress">', unsafe_allow_html=True)
+        st.subheader("🔄 Analysis in Progress...")
+        # Placeholders reused by streaming section below
+        st.session_state.progress_placeholder = st.empty()
+        st.session_state.status_placeholder = st.empty()
+        st.session_state.live_feed = st.container()
+        st.session_state.last_update_placeholder = st.empty()
+
 # Agent Status with Links to Outputs (only show if analysis has started or completed)
 if st.session_state.analysis_running or any(status != "pending" for status in st.session_state.agent_status.values()):
     
@@ -559,40 +574,93 @@ if st.session_state.analysis_running or any(status != "pending" for status in st
                                     st.session_state.render_epoch = 0
                                 key_suffix = f"_{st.session_state.render_epoch}"
                                 with placeholder.container():
-                                    if status_val == "complete":
-                                        st.success(f"✅ {agent_display} - Click for details")
-                                        if st.button(f"View {agent_display} Results", key=f"agent_{agent_name}_complete{key_suffix}", use_container_width=True):
-                                            st.session_state.selected_agent = agent_name
-                                            st.session_state.show_agent_details = True
-                                    elif status_val == "error":
-                                        st.error(f"❌ {agent_display} - Error")
-                                        if st.button(f"View {agent_display} Error", key=f"agent_{agent_name}_error{key_suffix}", use_container_width=True):
-                                            st.session_state.selected_agent = agent_name
-                                            st.session_state.show_agent_details = True
-                                    elif status_val == "running":
-                                        st.markdown(f"""
-                                        <div style="
-                                            background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
-                                            color: white;
-                                            padding: 10px;
-                                            border-radius: 8px;
-                                            text-align: center;
-                                            border: 3px solid #007bff;
-                                            box-shadow: 0 0 20px rgba(0, 123, 255, 0.8);
-                                            animation: pulse 1.5s infinite;
-                                            margin: 5px 0;
-                                        ">
-                                            🔄 <strong>{agent_display}</strong> - WORKING
-                                        </div>
-                                        """, unsafe_allow_html=True)
-                                        if st.button(f"View {agent_display} Live Progress", key=f"agent_{agent_name}_running{key_suffix}", use_container_width=True, type="primary"):
-                                            st.session_state.selected_agent = agent_name
-                                            st.session_state.show_agent_details = True
+                                    # Exactly one button. Wrap it in a div we can target directly.
+                                    _clean = agent_name.replace(' ', '_').lower()
+                                    is_running = (status_val == "running")
+                                    wrap_id = f"btnwrap_{_clean}{key_suffix if is_running else ''}"
+                                    if status_val == "running":
+                                        # Glowing plate directly behind the button
+                                        st.markdown(
+                                            f"<style>\n"
+                                            f"@keyframes agentPulse {{\n"
+                                            f"  0%   {{ transform: scale(1);   box-shadow: 0 0 10px rgba(0,153,255,0.35); }}\n"
+                                            f"  50%  {{ transform: scale(1.04); box-shadow: 0 0 30px rgba(0,153,255,0.9); }}\n"
+                                            f"  100% {{ transform: scale(1);   box-shadow: 0 0 10px rgba(0,153,255,0.35); }}\n"
+                                            f"}}\n"
+                                            f"#{wrap_id} {{\n"
+                                            f"  background: linear-gradient(135deg, rgba(0,123,255,0.20) 0%, rgba(0,86,179,0.20) 100%);\n"
+                                            f"  padding: 6px; border-radius: 12px;\n"
+                                            f"  animation: agentPulse 1.1s ease-in-out infinite !important;\n"
+                                            f"}}\n"
+                                            f"/* Color the actual button in the next block after our wrapper */\n"
+                                            f"[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div .stButton > button,\n"
+                                            f"[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div [data-testid^='baseButton'] {{ position: relative; z-index: 1; background: linear-gradient(135deg, #0d6efd 0%, #0b5ed7 100%) !important; color: #ffffff !important; border: 0 !important; box-shadow: none !important; }}\n"
+                                            f"[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div .stButton > button:hover,\n"
+                                            f"[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div [data-testid^='baseButton']:hover,\n"
+                                            f"[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div .stButton > button:active,\n"
+                                            f"[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div [data-testid^='baseButton']:active,\n"
+                                            f"[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div .stButton > button:focus-visible,\n"
+                                            f"[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div [data-testid^='baseButton']:focus-visible {{ background: linear-gradient(135deg, #0d6efd 0%, #0b5ed7 100%) !important; color: #ffffff !important; border: 0 !important; box-shadow: none !important; outline: none !important; }}\n"
+                                            f"</style>",
+                                            unsafe_allow_html=True,
+                                        )
+                                        st.markdown(f"<div id=\"{wrap_id}\">", unsafe_allow_html=True)
+                                        label = f"{agent_display} — View Live Progress"
+                                        btn_type = "primary"
+                                        clicked = st.button(label, key=f"agent_{agent_name}_action{key_suffix}", use_container_width=True, type=btn_type)
+                                        st.markdown("</div>", unsafe_allow_html=True)
                                     else:
-                                        st.warning(f"⏳ {agent_display} - Waiting")
-                                        if st.button(f"View {agent_display} Status", key=f"agent_{agent_name}_pending{key_suffix}", use_container_width=True):
-                                            st.session_state.selected_agent = agent_name
-                                            st.session_state.show_agent_details = True
+                                        if status_val == "complete":
+                                            # Cancel any lingering animation by rendering a non-animated wrapper
+                                            st.markdown(
+                                                f"<style>\n#{wrap_id} {{ animation: none !important; box-shadow: none !important; }}\n"
+                                                f"[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div .stButton > button,\n"
+                                                f"[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div [data-testid^='baseButton'],\n"
+                                                f"[data-testid='stVerticalBlock']:has(> div > #{wrap_id}) .stButton > button,\n"
+                                                f"[data-testid='stVerticalBlock']:has(> div > #{wrap_id}) [data-testid^='baseButton'] {{ background: linear-gradient(135deg, #2E865F 0%, #228B22 100%) !important; color: #ffffff !important; border: 0 !important; box-shadow: none !important; }}\n"
+                                                f"[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div .stButton > button:hover,\n"
+                                                f"[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div [data-testid^='baseButton']:hover,\n"
+                                                f"[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div .stButton > button:active,\n"
+                                                f"[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div [data-testid^='baseButton']:active,\n"
+                                                f"[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div .stButton > button:focus-visible,\n"
+                                                f"[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div [data-testid^='baseButton']:focus-visible,\n"
+                                                f"[data-testid='stVerticalBlock']:has(> div > #{wrap_id}) .stButton > button:hover,\n"
+                                                f"[data-testid='stVerticalBlock']:has(> div > #{wrap_id}) [data-testid^='baseButton']:hover,\n"
+                                                f"[data-testid='stVerticalBlock']:has(> div > #{wrap_id}) .stButton > button:active,\n"
+                                                f"[data-testid='stVerticalBlock']:has(> div > #{wrap_id}) [data-testid^='baseButton']:active,\n"
+                                                f"[data-testid='stVerticalBlock']:has(> div > #{wrap_id}) .stButton > button:focus-visible,\n"
+                                                f"[data-testid='stVerticalBlock']:has(> div > #{wrap_id}) [data-testid^='baseButton']:focus-visible {{ background: linear-gradient(135deg, #2E865F 0%, #228B22 100%) !important; color: #ffffff !important; border: 0 !important; box-shadow: none !important; outline: none !important; }}\n</style>",
+                                                unsafe_allow_html=True,
+                                            )
+                                            label = f"✅ View {agent_display} Results"
+                                            btn_type = "secondary"
+                                            st.markdown(f"<div id=\"{wrap_id}\">", unsafe_allow_html=True)
+                                            clicked = st.button(label, key=f"agent_{agent_name}_action{key_suffix}", use_container_width=True, type=btn_type)
+                                            st.markdown("</div>", unsafe_allow_html=True)
+                                        elif status_val == "error":
+                                            st.markdown(
+                                                f"<style>\n#{wrap_id} {{ animation: none !important; box-shadow: none !important; }}\n[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div .stButton > button,\n[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div [data-testid^='baseButton'] {{ background: linear-gradient(135deg, #6c757d 0%, #5c636a 100%) !important; color: #e2e3e5 !important; border: 0 !important; box-shadow: none !important; }}\n[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div .stButton > button:hover,\n[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div [data-testid^='baseButton']:hover,\n[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div .stButton > button:active,\n[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div [data-testid^='baseButton']:active,\n[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div .stButton > button:focus-visible,\n[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div [data-testid^='baseButton']:focus-visible {{ background: linear-gradient(135deg, #6c757d 0%, #5c636a 100%) !important; color: #e2e3e5 !important; border: 0 !important; box-shadow: none !important; outline: none !important; }}\n</style>",
+                                                unsafe_allow_html=True,
+                                            )
+                                            label = f"❌ {agent_display} — View Error Details"
+                                            btn_type = "secondary"
+                                            st.markdown(f"<div id=\"{wrap_id}\">", unsafe_allow_html=True)
+                                            clicked = st.button(label, key=f"agent_{agent_name}_action{key_suffix}", use_container_width=True, type=btn_type)
+                                            st.markdown("</div>", unsafe_allow_html=True)
+                                        else:
+                                            st.markdown(
+                                                f"<style>\n#{wrap_id} {{ animation: none !important; box-shadow: none !important; }}\n[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div .stButton > button,\n[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div [data-testid^='baseButton'] {{ background: linear-gradient(135deg, #2b2f36 0%, #23272c 100%) !important; color: #dfe3e6 !important; border: 0 !important; box-shadow: none !important; }}\n[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div .stButton > button:hover,\n[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div [data-testid^='baseButton']:hover,\n[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div .stButton > button:active,\n[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div [data-testid^='baseButton']:active,\n[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div .stButton > button:focus-visible,\n[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div [data-testid^='baseButton']:focus-visible {{ background: linear-gradient(135deg, #2b2f36 0%, #23272c 100%) !important; color: #dfe3e6 !important; border: 0 !important; box-shadow: none !important; outline: none !important; }}\n</style>",
+                                                unsafe_allow_html=True,
+                                            )
+                                            label = f"⏳ {agent_display} — Waiting"
+                                            btn_type = "secondary"
+                                            st.markdown(f"<div id=\"{wrap_id}\">", unsafe_allow_html=True)
+                                            clicked = st.button(label, key=f"agent_{agent_name}_action{key_suffix}", use_container_width=True, type=btn_type)
+                                            st.markdown("</div>", unsafe_allow_html=True)
+
+                                    if clicked:
+                                        st.session_state.selected_agent = agent_name
+                                        st.session_state.show_agent_details = True
                         _render_agent_card(ph, agent, status)
     
     # Show actionable agent outputs after completion
@@ -930,13 +998,31 @@ if st.session_state.analysis_running or any(status != "pending" for status in st
 
 # Analysis Progress and Results
 if st.session_state.analysis_running:
-        st.markdown('<div class="analysis-progress">', unsafe_allow_html=True)
-        st.subheader("🔄 Analysis in Progress...")
-        
-        # Progress bar
-        progress_bar = st.progress(0)
-        status_text = st.empty()
-        
+        # Bind to the placeholders created near the Start button so the UI appears just below it
+        progress_bar_ph = st.session_state.get("progress_placeholder")
+        status_text_ph = st.session_state.get("status_placeholder")
+        live_feed = st.session_state.get("live_feed")
+        last_update = st.session_state.get("last_update_placeholder")
+
+        # Fallbacks in case of direct reruns (ensure placeholders exist)
+        if not progress_bar_ph:
+            progress_bar_ph = st.empty()
+            st.session_state.progress_placeholder = progress_bar_ph
+        if not status_text_ph:
+            status_text_ph = st.empty()
+            st.session_state.status_placeholder = status_text_ph
+        if not live_feed:
+            live_feed = st.container()
+            st.session_state.live_feed = live_feed
+        if not last_update:
+            last_update = st.empty()
+            st.session_state.last_update_placeholder = last_update
+
+        # Use placeholders as handles
+        # Create an actual progress bar widget inside the placeholder
+        progress_bar = progress_bar_ph.progress(0)
+        status_text = status_text_ph
+
         # Create configuration (Phase 1 parity: provider/models/backend/rounds)
         config = DEFAULT_CONFIG.copy()
         config.update({
@@ -1014,10 +1100,8 @@ if st.session_state.analysis_running:
                 config=config,
             )
 
-            # Live containers
-            live_feed = st.container()
-            last_update = st.empty()
-
+            # Live containers already bound above via session_state placeholders
+            
             import time
 
             # Kick off first agent animation
@@ -1177,40 +1261,76 @@ if st.session_state.analysis_running:
                 st.session_state.render_epoch = st.session_state.get("render_epoch", 0) + 1
                 key_suffix = f"_{st.session_state.render_epoch}"
                 with ph.container():
-                    if status_val == "complete":
-                        st.success(f"✅ {agent_display} - Click for details")
-                        if st.button(f"View {agent_display} Results", key=f"agent_{agent_name}_complete{key_suffix}", use_container_width=True):
-                            st.session_state.selected_agent = agent_name
-                            st.session_state.show_agent_details = True
+                    # Consolidated TOP button rendering using a direct wrapper id for reliable targeting
+                    _clean = agent_name.replace(' ', '_').lower()
+                    is_running = (status_val == "running")
+                    wrap_id = f"btnwrap_{_clean}{key_suffix if is_running else ''}"
+                    if status_val == "running":
+                        st.markdown(
+                            f"<style>\n"
+                            f"@keyframes agentPulse {{\n"
+                            f"  0%   {{ transform: scale(1);   box-shadow: 0 0 10px rgba(0,153,255,0.35); }}\n"
+                            f"  50%  {{ transform: scale(1.04); box-shadow: 0 0 30px rgba(0,153,255,0.9); }}\n"
+                            f"  100% {{ transform: scale(1);   box-shadow: 0 0 10px rgba(0,153,255,0.35); }}\n"
+                            f"}}\n"
+                            f"#{wrap_id} {{\n"
+                            f"  background: linear-gradient(135deg, rgba(0,123,255,0.20) 0%, rgba(0,86,179,0.20) 100%);\n"
+                            f"  padding: 6px; border-radius: 12px;\n"
+                            f"  animation: agentPulse 1.1s ease-in-out infinite !important;\n"
+                            f"}}\n"
+                            f"/* Color the actual button in the next block after our wrapper */\n"
+                            f"[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div .stButton > button,\n"
+                            f"[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div [data-testid^='baseButton'] {{ position: relative; z-index: 1; background: linear-gradient(135deg, #0d6efd 0%, #0b5ed7 100%) !important; color: #ffffff !important; border: 0 !important; box-shadow: none !important; }}\n"
+                            f"[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div .stButton > button:hover,\n"
+                            f"[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div [data-testid^='baseButton']:hover,\n"
+                            f"[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div .stButton > button:active,\n"
+                            f"[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div [data-testid^='baseButton']:active,\n"
+                            f"[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div .stButton > button:focus-visible,\n"
+                            f"[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div [data-testid^='baseButton']:focus-visible {{ background: linear-gradient(135deg, #0d6efd 0%, #0b5ed7 100%) !important; color: #ffffff !important; border: 0 !important; box-shadow: none !important; outline: none !important; }}\n"
+                            f"</style>",
+                            unsafe_allow_html=True,
+                        )
+                        st.markdown(f"<div id=\"{wrap_id}\">", unsafe_allow_html=True)
+                        label = f"{agent_display} — View Live Progress"
+                        clicked = st.button(label, key=f"agent_{agent_name}_action{key_suffix}", use_container_width=True, type="primary")
+                        st.markdown("</div>", unsafe_allow_html=True)
+                    elif status_val == "complete":
+                        st.markdown(
+                            f"<style>\n#{wrap_id} {{ animation: none !important; box-shadow: none !important; }}\n[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div .stButton > button,\n[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div [data-testid^='baseButton'] {{ background: linear-gradient(135deg, #2E865F 0%, #228B22 100%) !important; color: #ffffff !important; border: 0 !important; box-shadow: none !important; }}\n[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div .stButton > button:hover,\n[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div [data-testid^='baseButton']:hover,\n[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div .stButton > button:active,\n[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div [data-testid^='baseButton']:active,\n[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div .stButton > button:focus-visible,\n[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div [data-testid^='baseButton']:focus-visible {{ background: linear-gradient(135deg, #2E865F 0%, #228B22 100%) !important; color: #ffffff !important; border: 0 !important; box-shadow: none !important; outline: none !important; }}\n</style>",
+                            unsafe_allow_html=True,
+                        )
+                        st.markdown(f"<div id=\"{wrap_id}\">", unsafe_allow_html=True)
+                        label = f"✅ View {agent_display} Results"
+                        clicked = st.button(label, key=f"agent_{agent_name}_action{key_suffix}", use_container_width=True)
+                        st.markdown("</div>", unsafe_allow_html=True)
                     elif status_val == "error":
-                        st.error(f"❌ {agent_display} - Error")
-                        if st.button(f"View {agent_display} Error", key=f"agent_{agent_name}_error{key_suffix}", use_container_width=True):
-                            st.session_state.selected_agent = agent_name
-                            st.session_state.show_agent_details = True
-                    elif status_val == "running":
-                        st.markdown(f"""
-                        <div style="
-                            background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
-                            color: white;
-                            padding: 10px;
-                            border-radius: 8px;
-                            text-align: center;
-                            border: 3px solid #007bff;
-                            box-shadow: 0 0 20px rgba(0, 123, 255, 0.8);
-                            animation: pulse 1.5s infinite;
-                            margin: 5px 0;
-                        ">
-                            🔄 <strong>{agent_display}</strong> - WORKING
-                        </div>
-                        """, unsafe_allow_html=True)
-                        if st.button(f"View {agent_display} Live Progress", key=f"agent_{agent_name}_running{key_suffix}", use_container_width=True, type="primary"):
-                            st.session_state.selected_agent = agent_name
-                            st.session_state.show_agent_details = True
+                        st.markdown(
+                            f"<style>\n#{wrap_id} {{ animation: none !important; box-shadow: none !important; }}\n[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div .stButton > button,\n[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div [data-testid^='baseButton'] {{ background: linear-gradient(135deg, #6c757d 0%, #5c636a 100%) !important; color: #e2e3e5 !important; border: 0 !important; box-shadow: none !important; }}\n[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div .stButton > button:hover,\n[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div [data-testid^='baseButton']:hover,\n[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div .stButton > button:active,\n[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div [data-testid^='baseButton']:active,\n[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div .stButton > button:focus-visible,\n[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div [data-testid^='baseButton']:focus-visible {{ background: linear-gradient(135deg, #6c757d 0%, #5c636a 100%) !important; color: #e2e3e5 !important; border: 0 !important; box-shadow: none !important; outline: none !important; }}\n</style>",
+                            unsafe_allow_html=True,
+                        )
+                        st.markdown(f"<div id=\"{wrap_id}\">", unsafe_allow_html=True)
+                        label = f"❌ {agent_display} — View Error Details"
+                        clicked = st.button(label, key=f"agent_{agent_name}_action{key_suffix}", use_container_width=True)
+                        st.markdown("</div>", unsafe_allow_html=True)
                     else:
-                        st.warning(f"⏳ {agent_display} - Waiting")
-                        if st.button(f"View {agent_display} Status", key=f"agent_{agent_name}_pending{key_suffix}", use_container_width=True):
-                            st.session_state.selected_agent = agent_name
-                            st.session_state.show_agent_details = True
+                        st.markdown(
+                            f"<style>\n#{wrap_id} {{ animation: none !important; box-shadow: none !important; }}\n[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div .stButton > button,\n[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div [data-testid^='baseButton'] {{ background: linear-gradient(135deg, #2b2f36 0%, #23272c 100%) !important; color: #dfe3e6 !important; border: 0 !important; box-shadow: none !important; }}\n"
+                            f"[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div .stButton > button:hover,\n"
+                            f"[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div [data-testid^='baseButton']:hover,\n"
+                            f"[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div .stButton > button:active,\n"
+                            f"[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div [data-testid^='baseButton']:active,\n"
+                            f"[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div .stButton > button:focus-visible,\n"
+                            f"[data-testid='stVerticalBlock'] > div:has(> #{wrap_id}) ~ div [data-testid^='baseButton']:focus-visible {{ background: linear-gradient(135deg, #2b2f36 0%, #23272c 100%) !important; color: #dfe3e6 !important; border: 0 !important; box-shadow: none !important; outline: none !important; }}\n"
+                            f"</style>",
+                            unsafe_allow_html=True,
+                        )
+                        st.markdown(f"<div id=\"{wrap_id}\">", unsafe_allow_html=True)
+                        label = f"⏳ {agent_display} — Waiting"
+                        clicked = st.button(label, key=f"agent_{agent_name}_action{key_suffix}", use_container_width=True)
+                        st.markdown("</div>", unsafe_allow_html=True)
+                    if clicked:
+                        st.session_state.selected_agent = agent_name
+                        st.session_state.show_agent_details = True
 
             # Human-friendly status line per agent
             _agent_running_msg = {
@@ -1276,6 +1396,21 @@ if st.session_state.analysis_running:
 
             # Stream execution
             received = 0
+            # Ensure the first active analyst shows as running at the start so the button animates immediately
+            try:
+                order = [
+                    ("market", "Market Analyst"),
+                    ("social", "Social Analyst"),
+                    ("news", "News Analyst"),
+                    ("fundamentals", "Fundamentals Analyst"),
+                ]
+                for key, label in order:
+                    if any(key.capitalize() in a for a in active_selected_analysts) or key in active_selected_analysts:
+                        _set_status(label, "running")
+                        break
+            except Exception:
+                pass
+
             try:
                 for chunk in ta.propagate_stream(stock_symbol, date_str):
                     if not st.session_state.analysis_running:
@@ -1283,6 +1418,8 @@ if st.session_state.analysis_running:
                         break
 
                     received += 1
+                    # Bump render epoch to ensure UI elements (including the button wrapper) re-render during streaming
+                    st.session_state.render_epoch = st.session_state.get("render_epoch", 0) + 1
                     # Update progress gently
                     progress_bar.progress(min(95, 20 + received % 70))
 
@@ -1402,6 +1539,18 @@ if st.session_state.analysis_running:
 
                     # Update rotating status text each tick to reflect multiple running agents
                     _update_running_status_text()
+                    # Advance animation epoch so running buttons/spinners update frames
+                    st.session_state.render_epoch = (st.session_state.get("render_epoch", 0) + 1) % 100000
+                    # Animate per-agent spinner placeholders without re-rendering entire cards
+                    epoch = st.session_state.render_epoch
+                    frames = ["⠋","⠙","⠹","⠸","⠼","⠴","⠦","⠧","⠇","⠏"]
+                    spin = frames[epoch % len(frames)]
+                    for _agent, _status in list(st.session_state.agent_status.items()):
+                        if _status == "running":
+                            sp_map = st.session_state.get("agent_spinner_ph", {})
+                            sp_ph = sp_map.get(_agent)
+                            if sp_ph is not None:
+                                sp_ph.markdown(f"<div style='font-size:18px; line-height:28px;'>{spin}</div>", unsafe_allow_html=True)
 
                 # If completed normally
                 if st.session_state.analysis_running:
