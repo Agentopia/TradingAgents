@@ -264,6 +264,26 @@
     100% { transform: rotate(360deg); }
 }
 
+/* ===== AGENT BUTTON STATUS STYLES ===== */
+/* Style agent buttons based on the class of their container div */
+.agent-running .stButton > button,
+.agent-running [data-testid^="baseButton"] {
+    background: linear-gradient(135deg, var(--primary-blue) 0%, var(--primary-blue-dark) 100%) !important;
+    animation: pulse var(--animation-pulse) !important;
+    box-shadow: var(--shadow-glow) !important;
+}
+
+.agent-completed .stButton > button,
+.agent-completed [data-testid^="baseButton"] {
+    background: linear-gradient(135deg, var(--success-green) 0%, #1e7e34 100%) !important;
+}
+
+.agent-error .stButton > button,
+.agent-error [data-testid^="baseButton"] {
+    background: linear-gradient(135deg, var(--danger-red) 0%, #a71d2a 100%) !important;
+}
+
+
 /* ===== RUNNING AGENT ANIMATIONS ===== */
 /* Consolidated running agent animation styles */
 .stButton > button[kind="primary"],
